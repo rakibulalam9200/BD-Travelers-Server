@@ -1,5 +1,6 @@
 const express = require("express");
 const { MongoClient } = require("mongodb");
+const ObjectId = require("mongodb").ObjectId;
 const cors = require("cors");
 require("dotenv").config();
 const app = express();
@@ -20,34 +21,95 @@ async function run() {
     await client.connect();
     const database = client.db("bd-travelers");
     const offersCollection = database.collection("offers");
-    //GET ALL DATA
+    const bookedCollection = database.collection("booked");
+    const volunteersCollection = database.collection("volunteers");
+
+    //GET ALL OFFER
     app.get("/offers", async (req, res) => {
-      //const query = {};
       const cursor = offersCollection.find({});
       const offers = await cursor.toArray();
-      console.log(offers);
       res.send(offers);
     });
 
-    //GET SINGLE DATA
+    //GET ALL VOLUNTEERS
+    app.get("/volunteers", async (req, res) => {
+      const cursor = volunteersCollection.find({});
+      const volunteers = await cursor.toArray();
+      console.log(volunteers);
+      res.send(volunteers);
+    });
+
+    //GET ALL Booked by email
+    app.get("/books/:email", async (req, res) => {
+      const books = await bookedCollection
+        .find({ email: req.params.email })
+        .toArray();
+      res.send(books);
+    });
+
+    //GET SINGLE OFFER
     app.get("/offers/:id", async (req, res) => {
       const id = req.params.id;
-      console.log("getting specific Offer", id);
       const query = { _id: ObjectId(id) };
       const offers = await offersCollection.findOne(query);
-      console.log(offers);
       res.json(offers);
     });
 
-    //POST API
+    //POST OFFER API
     app.post("/offers", async (req, res) => {
       const offer = req.body;
-      console.log("Hit the post API", offer);
       const result = await offersCollection.insertOne(offer);
-      console.log(result);
       res.json(result);
     });
-    console.log("DB connected successfully");
+
+    //DELETE OFFER API
+    app.delete("/offers/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: ObjectId(id) };
+      const result = await offersCollection.deleteOne(query);
+      res.json(result);
+    });
+
+    //DELETE BOOKED API
+    app.delete("/books/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: ObjectId(id) };
+      const result = await bookedCollection.deleteOne(query);
+      res.json(result);
+    });
+
+    //UPDATE API
+    app.put("/offers/:id", async (req, res) => {
+      const id = req.params.id;
+      const updatedOffer = req.body;
+      const filter = { _id: ObjectId(id) };
+      const options = { upsert: true };
+      const updateOffer = {
+        $set: {
+          name: updatedOffer.name,
+          description: updatedOffer.description,
+          fee: updatedOffer.fee,
+          tripDate: updatedOffer.tripDate,
+          tripDuration: updatedOffer.tripDuration,
+          img: updatedOffer.img,
+        },
+      };
+      const result = await offersCollection.updateOne(
+        filter,
+        updateOffer,
+        options
+      );
+
+      console.log("Updating offer", result);
+      res.json(result);
+    });
+
+    //ADD BOOK
+    app.post("/book", async (req, res) => {
+      const offer = req.body;
+      const result = await bookedCollection.insertOne(offer);
+      res.json(result);
+    });
   } finally {
     //await client.close();
   }
